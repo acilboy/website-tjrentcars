@@ -1,0 +1,158 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "TJ Rentcar API Specification",
+    "description": "Dokumentasi REST API resmi Website TJ Rentcar Jakarta",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:4000/api/v1",
+      "description": "Development Server"
+    }
+  ],
+  "paths": {
+    "/public/settings": {
+      "get": {
+        "summary": "Mendapatkan informasi dan pengaturan publik TJ Rentcar",
+        "responses": {
+          "200": {
+            "description": "Berhasil mendapatkan pengaturan publik"
+          }
+        }
+      }
+    },
+    "/public/vehicles": {
+      "get": {
+        "summary": "Katalog kendaraan aktif dengan filter dan pagination",
+        "parameters": [
+          { "name": "search", "in": "query", "schema": { "type": "string" } },
+          { "name": "brand", "in": "query", "schema": { "type": "string" } },
+          { "name": "category", "in": "query", "schema": { "type": "string" } },
+          { "name": "transmission", "in": "query", "schema": { "type": "string", "enum": ["MANUAL", "AUTOMATIC"] } },
+          { "name": "seats", "in": "query", "schema": { "type": "integer" } },
+          { "name": "serviceType", "in": "query", "schema": { "type": "string", "enum": ["WITH_DRIVER", "SELF_DRIVE"] } },
+          { "name": "sort", "in": "query", "schema": { "type": "string", "enum": ["price_asc", "price_desc", "name_asc", "newest"] } },
+          { "name": "page", "in": "query", "schema": { "type": "integer", "default": 1 } },
+          { "name": "limit", "in": "query", "schema": { "type": "integer", "default": 12 } }
+        ],
+        "responses": {
+          "200": { "description": "Daftar armada aktif" }
+        }
+      }
+    },
+    "/public/vehicles/{slug}": {
+      "get": {
+        "summary": "Detail satu armada aktif berdasarkan slug",
+        "parameters": [
+          { "name": "slug", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Detail kendaraan" },
+          "404": { "description": "Kendaraan tidak ditemukan" }
+        }
+      }
+    },
+    "/public/vehicles/{id}/availability": {
+      "get": {
+        "summary": "Pengecekan ketersediaan jadwal & kalkulasi estimasi harga",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } },
+          { "name": "pickupAt", "in": "query", "required": true, "schema": { "type": "string", "format": "date-time" } },
+          { "name": "returnAt", "in": "query", "required": true, "schema": { "type": "string", "format": "date-time" } },
+          { "name": "serviceType", "in": "query", "schema": { "type": "string", "enum": ["WITH_DRIVER", "SELF_DRIVE"] } },
+          { "name": "billingUnit", "in": "query", "schema": { "type": "string", "enum": ["DAILY", "WEEKLY", "MONTHLY"] } }
+        ],
+        "responses": {
+          "200": { "description": "Hasil pengecekan ketersediaan" }
+        }
+      }
+    },
+    "/public/bookings": {
+      "post": {
+        "summary": "Membuat permintaan booking baru (status selalu PENDING)",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["vehicleId", "customerName", "customerPhone", "serviceType", "pickupAt", "returnAt", "pickupLocation", "acceptedTerms"],
+                "properties": {
+                  "vehicleId": { "type": "string" },
+                  "customerName": { "type": "string" },
+                  "customerPhone": { "type": "string" },
+                  "customerEmail": { "type": "string", "format": "email" },
+                  "serviceType": { "type": "string", "enum": ["WITH_DRIVER", "SELF_DRIVE"] },
+                  "billingUnit": { "type": "string", "enum": ["DAILY", "WEEKLY", "MONTHLY"] },
+                  "pickupAt": { "type": "string", "format": "date-time" },
+                  "returnAt": { "type": "string", "format": "date-time" },
+                  "pickupLocation": { "type": "string" },
+                  "returnLocation": { "type": "string" },
+                  "customerNote": { "type": "string" },
+                  "acceptedTerms": { "type": "boolean" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Booking berhasil dibuat dengan status PENDING" },
+          "409": { "description": "Jadwal berbenturan" }
+        }
+      }
+    },
+    "/admin/auth/login": {
+      "post": {
+        "summary": "Login admin dan perolehan cookie HttpOnly",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["email", "password"],
+                "properties": {
+                  "email": { "type": "string", "format": "email" },
+                  "password": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Login berhasil" },
+          "401": { "description": "Kredensial tidak valid" }
+        }
+      }
+    },
+    "/admin/bookings/{id}/status": {
+      "patch": {
+        "summary": "Perubahan status booking dengan validasi atomik",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["status"],
+                "properties": {
+                  "status": { "type": "string", "enum": ["CONFIRMED", "IN_PROGRESS", "COMPLETED", "REJECTED", "CANCELLED"] },
+                  "paymentStatus": { "type": "string", "enum": ["NOT_TRACKED", "UNPAID", "DP_PAID", "PAID", "REFUNDED"] },
+                  "amountPaid": { "type": "integer" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Status booking berhasil diubah" },
+          "409": { "description": "Konflik jadwal saat konfirmasi atau transisi status tidak valid" }
+        }
+      }
+    }
+  }
+}
